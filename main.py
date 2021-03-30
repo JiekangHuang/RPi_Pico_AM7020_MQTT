@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# am7020_mqtt.py
+# main.py
 # @Author : Zack Huang ()
 # @Link   : zack@atticedu.com
 # @Date   : 2021/3/30 下午2:49:20
 
+from machine import Pin
 from utime import ticks_ms, sleep_ms
 from am7020.am7020_nb import AM7020NB
 from am7020.am7020_mqtt import AM7020MQTT
@@ -13,16 +14,19 @@ from am7020.am7020_mqtt import AM7020MQTT
 
 apn = "twm.nbiot"
 band = 28
-MQTT_BROKER = "test.mosquitto.org"
+MQTT_BROKER = "io.adafruit.com"
 PORT = 1883
-MQTT_USERNAME = ""
-MQTT_PASSWORD = ""
-TEST_TOPIC = "temp/humidity"
+MQTT_USERNAME = "<YOUR USERNAME>"
+MQTT_PASSWORD = "<YOUR AIO KEY>"
+PUB_TEST_TOPIC = MQTT_USERNAME + "/feeds/pub"
+SUB_TEST_TOPIC = MQTT_USERNAME + "/feeds/sub"
 UPLOAD_INTERVAL_MS = 60000
 
 
-nb = AM7020NB(1, 19200, 4, 5, 3, False)
+nb = AM7020NB(1, 9600, 4, 5, 3, False)
 mqtt = AM7020MQTT(nb)
+
+led = Pin(25, Pin.OUT)
 
 
 def nbConnect():
@@ -40,10 +44,10 @@ def nbConnect():
 def reConnBroker():
     if(not mqtt.chkConnBroker()):
         print("Connecting to", MQTT_BROKER, end="...")
-        if(mqtt.connBroker(MQTT_BROKER, PORT, mqtt_id="MY_AM7020_TEST_MQTTID")):
+        if(mqtt.connBroker(MQTT_BROKER, PORT, username=MQTT_USERNAME, password=MQTT_PASSWORD, mqtt_id="MY_AM7020_TEST_MQTTID")):
             print(" success")
-            print("subscribe: ", TEST_TOPIC, end="")
-            if(mqtt.subscribe(TEST_TOPIC, callback1)):
+            print("subscribe: ", SUB_TEST_TOPIC, end="")
+            if(mqtt.subscribe(SUB_TEST_TOPIC, callback1)):
                 print(" success")
             else:
                 print(" fail")
@@ -52,7 +56,11 @@ def reConnBroker():
 
 
 def callback1(msg):
-    print(TEST_TOPIC, ":", msg)
+    print(SUB_TEST_TOPIC, ":", msg)
+    if(msg == "ON"):
+        led.value(1)
+    else:
+        led.value(0)
 
 
 def main():
@@ -70,7 +78,7 @@ def main():
         if(ticks_ms() > pub_data_timer):
             pub_data_timer = ticks_ms() + UPLOAD_INTERVAL_MS
             print("publish: ", pub_data_timer, end="")
-            if(mqtt.publish(TEST_TOPIC, str(pub_data_timer))):
+            if(mqtt.publish(PUB_TEST_TOPIC, str(pub_data_timer))):
                 print("  success")
             else:
                 print("  Fail")
